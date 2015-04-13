@@ -166,40 +166,52 @@ def action_to_str(act):
         buf = 'POP_PBB'
     else:
         buf = 'UNKNOWN'
+
     return buf
 
 
-def actions_to_str(instructions):
-    actions = []
+def instructions_to_str(instructions):
+    instructions_returned = {}
 
     for instruction in instructions:
-        if isinstance(instruction,
-                      ofproto_v1_3_parser.OFPInstructionActions):
+
+        if isinstance(instruction, ofproto_v1_3_parser.OFPInstructionApplyActions):
+            actions = []
             for a in instruction.actions:
                 actions.append(action_to_str(a))
 
-        elif isinstance(instruction,
-                        ofproto_v1_3_parser.OFPInstructionGotoTable):
-            buf = 'GOTO_TABLE:' + str(instruction.table_id)
-            actions.append(buf)
+            instructions_returned["APPLY_ACTIONS"] = actions
 
-        elif isinstance(instruction,
-                        ofproto_v1_3_parser.OFPInstructionWriteMetadata):
-            buf = ('WRITE_METADATA:0x%x/0x%x' % (instruction.metadata,
-                                                 instruction.metadata_mask)
-                   if instruction.metadata_mask
-                   else 'WRITE_METADATA:0x%x' % instruction.metadata)
-            actions.append(buf)
+        elif isinstance(instruction, ofproto_v1_3_parser.OFPInstructionWriteActions):
+            actions = []
+            for a in instruction.actions:
+                actions.append(action_to_str(a))
 
-        elif isinstance(instruction,
-                        ofproto_v1_3_parser.OFPInstructionMeter):
-            buf = 'METER:' + str(instruction.meter_id)
-            actions.append(buf)
+            instructions_returned["WRITE_ACTIONS"] = actions
+
+        elif isinstance(instruction, ofproto_v1_3_parser.OFPInstructionClearActions):
+            actions = []
+            for a in instruction.actions:
+                actions.append(action_to_str(a))
+
+            instructions_returned["CLEAR_ACTIONS"] = actions
+
+        elif isinstance(instruction, ofproto_v1_3_parser.OFPInstructionGotoTable):
+            instructions_returned["GOTO_TABLE"] = str(instruction.table_id)
+
+        elif isinstance(instruction, ofproto_v1_3_parser.OFPInstructionWriteMetadata):
+            if instruction.metadata_mask:
+                instructions_returned["WRITE_METADATA"] = '0x%x/0x%x'%(instruction.metadata, instruction.metadata_mask)
+            else:
+                instructions_returned["WRITE_METADATA"] = '0x%x'%(instruction.metadata)
+
+        elif isinstance(instruction, ofproto_v1_3_parser.OFPInstructionMeter):
+            instructions_returned["METER"] = str(instruction.meter_id)
 
         else:
             continue
 
-    return actions
+    return instructions_returned
 
 
 def to_match(dp, attrs):
@@ -470,14 +482,14 @@ def get_flow_stats(dp, waiters, flow={}):
     flows = []
     for msg in msgs:
         for stats in msg.body:
-            actions = actions_to_str(stats.instructions)
+            instructions = instructions_to_str(stats.instructions)
             match = match_to_str(stats.match)
 
             s = {'priority': stats.priority,
                  'cookie': stats.cookie,
                  'idle_timeout': stats.idle_timeout,
                  'hard_timeout': stats.hard_timeout,
-                 'actions': actions,
+                 'instructions': instructions,
                  'match': match,
                  'byte_count': stats.byte_count,
                  'duration_sec': stats.duration_sec,

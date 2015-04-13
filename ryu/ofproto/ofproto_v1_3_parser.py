@@ -2580,9 +2580,144 @@ class OFPInstructionWriteMetadata(OFPInstruction):
                       self.metadata_mask)
 
 
-@OFPInstruction.register_instruction_type([ofproto.OFPIT_WRITE_ACTIONS,
-                                           ofproto.OFPIT_APPLY_ACTIONS,
-                                           ofproto.OFPIT_CLEAR_ACTIONS])
+@OFPInstruction.register_instruction_type([ofproto.OFPIT_WRITE_ACTIONS])
+class OFPInstructionWriteActions(OFPInstruction):
+
+    def __init__(self, type_, actions=None, len_=None):
+        super(OFPInstructionWriteActions, self).__init__()
+        self.type = type_
+        for a in actions:
+            assert isinstance(a, OFPAction)
+        self.actions = actions
+
+    @classmethod
+    def parser(cls, buf, offset):
+        (type_, len_) = struct.unpack_from(
+            ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+            buf, offset)
+
+        offset += ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        actions = []
+        actions_len = len_ - ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        while actions_len > 0:
+            a = OFPAction.parser(buf, offset)
+            actions.append(a)
+            actions_len -= a.len
+            offset += a.len
+
+        inst = cls(type_, actions)
+        inst.len = len_
+        return inst
+
+    def serialize(self, buf, offset):
+        action_offset = offset + ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        if self.actions:
+            for a in self.actions:
+                a.serialize(buf, action_offset)
+                action_offset += a.len
+
+        self.len = action_offset - offset
+        pad_len = utils.round_up(self.len, 8) - self.len
+        msg_pack_into("%dx" % pad_len, buf, action_offset)
+        self.len += pad_len
+
+        msg_pack_into(ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+                      buf, offset, self.type, self.len)
+
+
+@OFPInstruction.register_instruction_type([ofproto.OFPIT_APPLY_ACTIONS])
+class OFPInstructionApplyActions(OFPInstruction):
+
+    def __init__(self, type_, actions=None, len_=None):
+        super(OFPInstructionApplyActions, self).__init__()
+        self.type = type_
+        for a in actions:
+            assert isinstance(a, OFPAction)
+        self.actions = actions
+
+    @classmethod
+    def parser(cls, buf, offset):
+        (type_, len_) = struct.unpack_from(
+            ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+            buf, offset)
+
+        offset += ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        actions = []
+        actions_len = len_ - ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        while actions_len > 0:
+            a = OFPAction.parser(buf, offset)
+            actions.append(a)
+            actions_len -= a.len
+            offset += a.len
+
+        inst = cls(type_, actions)
+        inst.len = len_
+        return inst
+
+    def serialize(self, buf, offset):
+        action_offset = offset + ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        if self.actions:
+            for a in self.actions:
+                a.serialize(buf, action_offset)
+                action_offset += a.len
+
+        self.len = action_offset - offset
+        pad_len = utils.round_up(self.len, 8) - self.len
+        msg_pack_into("%dx" % pad_len, buf, action_offset)
+        self.len += pad_len
+
+        msg_pack_into(ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+                      buf, offset, self.type, self.len)
+
+
+@OFPInstruction.register_instruction_type([ofproto.OFPIT_CLEAR_ACTIONS])
+class OFPInstructionClearActions(OFPInstruction):
+
+    def __init__(self, type_, actions=None, len_=None):
+        super(OFPInstructionClearActions, self).__init__()
+        self.type = type_
+        for a in actions:
+            assert isinstance(a, OFPAction)
+        self.actions = actions
+
+    @classmethod
+    def parser(cls, buf, offset):
+        (type_, len_) = struct.unpack_from(
+            ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+            buf, offset)
+
+        offset += ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        actions = []
+        actions_len = len_ - ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        while actions_len > 0:
+            a = OFPAction.parser(buf, offset)
+            actions.append(a)
+            actions_len -= a.len
+            offset += a.len
+
+        inst = cls(type_, actions)
+        inst.len = len_
+        return inst
+
+    def serialize(self, buf, offset):
+        action_offset = offset + ofproto.OFP_INSTRUCTION_ACTIONS_SIZE
+        if self.actions:
+            for a in self.actions:
+                a.serialize(buf, action_offset)
+                action_offset += a.len
+
+        self.len = action_offset - offset
+        pad_len = utils.round_up(self.len, 8) - self.len
+        msg_pack_into("%dx" % pad_len, buf, action_offset)
+        self.len += pad_len
+
+        msg_pack_into(ofproto.OFP_INSTRUCTION_ACTIONS_PACK_STR,
+                      buf, offset, self.type, self.len)
+
+
+#@OFPInstruction.register_instruction_type([ofproto.OFPIT_WRITE_ACTIONS,
+#                                           ofproto.OFPIT_APPLY_ACTIONS,
+#                                           ofproto.OFPIT_CLEAR_ACTIONS])
 class OFPInstructionActions(OFPInstruction):
     """
     Actions instruction
