@@ -47,7 +47,7 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(datapath, 0, match, actions, ofproto.OFPP_CONTROLLER)
+        self.add_flow(datapath, 0, match, actions)
 
     def send_queue_stats_request(self, datapath):
         ofp = datapath.ofproto
@@ -85,7 +85,7 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
         q = parser.OFPPacketQueue(1, port, properties)
         datapath.send_msg(q)
 
-    def add_flow(self, datapath, priority, match, actions, out_port, buffer_id=None):
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
@@ -147,10 +147,10 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
             # verify if we have a valid buffer_id, if yes avoid to send both
             # flow_mod & packet_out
             if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-                self.add_flow(datapath, 1, match, actions, out_port, msg.buffer_id)
+                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
                 return
             else:
-                self.add_flow(datapath, 1, match, actions, out_port)
+                self.add_flow(datapath, 1, match, actions)
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
@@ -159,5 +159,5 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
                                   in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
 
-        time.sleep(1)
+        time.sleep(0.2)
         self.send_queue_stats_request(datapath)
