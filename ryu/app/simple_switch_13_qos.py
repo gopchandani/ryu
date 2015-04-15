@@ -30,6 +30,7 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch13QoS, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
+        self.meters_added = []
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -47,6 +48,7 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
+
         self.add_flow(datapath, 0, match, actions)
 
     def send_queue_stats_request(self, datapath):
@@ -68,8 +70,9 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
                           (stat.port_no, stat.queue_id,
                            stat.tx_bytes, stat.tx_packets, stat.tx_errors,
                            stat.duration_sec, stat.duration_nsec))
-
-        print "QueueStats:", queues
+        print "--"
+        for qs in queues:
+            print qs
 
     def setup_queue(self, datapath, port):
 
@@ -85,11 +88,20 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
         q = parser.OFPPacketQueue(1, port, properties)
         datapath.send_msg(q)
 
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None, in_port=None):
+
+        if in_port and in_port not in self.meters_added:
+            self.add_per_port_meter(datapath, in_port)
+            self.meters_added.append(in_port)
+
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
         inst = [parser.OFPInstructionWriteActions(ofproto.OFPIT_WRITE_ACTIONS, actions)]
+
+        # If in_port is provided, then refer to meter for this port
+        if in_port:
+            inst.append(parser.OFPInstructionMeter(in_port))
 
         if buffer_id:
             mod = parser.OFPFlowMod(datapath=datapath,
@@ -102,6 +114,25 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
                                     priority=priority,
                                     match=match,
                                     instructions=inst)
+
+        datapath.send_msg(mod)
+
+
+    def add_per_port_meter(self, datapath, port):
+
+        print "Going to use this as meter id:", type(port), port
+
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+        #Setting rate to 1 Mbps
+        drop_band = parser.OFPMeterBandDrop(rate=500, burst_size=100)
+
+        mod = parser.OFPMeterMod(datapath,
+                                 command=ofproto.OFPMC_ADD,
+                                 flags=ofproto.OFPMF_KBPS,
+                                 meter_id=port,
+                                 bands=[drop_band])
 
         datapath.send_msg(mod)
 
@@ -137,9 +168,11 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
             out_port = self.mac_to_port[dpid][dst]
         else:
             out_port = ofproto.OFPP_FLOOD
+        #
+        # actions = [parser.OFPActionOutput(out_port),
+        #            parser.OFPActionSetQueue(2)]
 
         actions = [parser.OFPActionOutput(out_port)]
-
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
@@ -147,10 +180,10 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
             # verify if we have a valid buffer_id, if yes avoid to send both
             # flow_mod & packet_out
             if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+                self.add_flow(datapath, 1, match, actions, msg.buffer_id, in_port=in_port)
                 return
             else:
-                self.add_flow(datapath, 1, match, actions)
+                self.add_flow(datapath, 1, match, actions, in_port=in_port)
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
@@ -159,5 +192,5 @@ class SimpleSwitch13QoS(app_manager.RyuApp):
                                   in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
 
-        time.sleep(0.2)
-        self.send_queue_stats_request(datapath)
+        # time.sleep(0.2)
+        # self.send_queue_stats_request(datapath)
