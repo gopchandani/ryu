@@ -34,7 +34,7 @@ class MininetMan():
 			h2 = self.net.getNodeByName("h2")
 
 			#self.net.ping(hosts=[h1, h2])
-			self.net.iperf(hosts=[h1, h2], seconds=1)
+			self.net.iperf(hosts=[h1, h2], seconds=1, l4Type="UDP", udpBw='1M')
 			time.sleep(10)
 	except KeyboardInterrupt:
     		pass	
