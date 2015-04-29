@@ -23,17 +23,21 @@ class MininetMan():
                            controller=lambda name: RemoteController(name, ip='127.0.0.1', port=self.controller_port),
                            switch=OVSSwitch)
 
-	print "Setup"
-
         # Start
         self.net.start()
 
 		
-	# Send a packet every 10 second
-	print "Ping"
-	self.net.pingAll(timeout="10")
-	
-	print "Stop"
+	# Start a ping every 10 seconds
+	try:
+    		while True:
+			h1 = self.net.getNodeByName("h1")
+			h2 = self.net.getNodeByName("h2")
+
+			#self.net.ping(hosts=[h1, h2])
+			self.net.iperf(hosts=[h1, h2], seconds=1)
+			time.sleep(10)
+	except KeyboardInterrupt:
+    		pass	
 
 	# Stop
 	self.net.stop()
