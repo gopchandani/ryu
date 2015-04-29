@@ -26,18 +26,14 @@ class MininetMan():
         # Start
         self.net.start()
 
+	h1 = self.net.getNodeByName("h1")
+	h2 = self.net.getNodeByName("h2")
+	
+	# Disable ICMP reply packets on host-2 so only a single packet is sent from h1->h2 and no replies
+	h2.cmd('echo "1" >  /proc/sys/net/ipv4/icmp_echo_ignore_all')
 		
-	# Start a ping every 10 seconds
-	try:
-    		while True:
-			h1 = self.net.getNodeByName("h1")
-			h2 = self.net.getNodeByName("h2")
-
-			self.net.ping(hosts=[h1, h2])
-			#self.net.iperf(hosts=[h1, h2], seconds=1, l4Type="UDP", udpBw='1M')
-			time.sleep(10)
-	except KeyboardInterrupt:
-    		pass	
+	# Start at h1  ping every 10 seconds
+	h1.cmd('ping -i 10 10.0.0.2')
 
 	# Stop
 	self.net.stop()
