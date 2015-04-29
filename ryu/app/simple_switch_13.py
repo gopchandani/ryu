@@ -77,10 +77,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         parser = datapath.ofproto_parser
         in_port = msg.match['in_port']
 
-	# Don't install any rules for traffic coming from in_port
-	if in_port == 2:
-		return
-
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
 
